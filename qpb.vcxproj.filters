@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="qpb\qpb.cpp" />
+    <ClCompile Include="qpb\qpb_array.cpp" />
+    <ClCompile Include="qpb\qpb_message.cpp" />
+    <ClCompile Include="qpb\qpb_ref.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="qpb\qpb.h" />
+    <ClInclude Include="qpb\qpb_array.h" />
+    <ClInclude Include="qpb\qpb_convert.h" />
+    <ClInclude Include="qpb\qpb_forwards.h" />
+    <ClInclude Include="qpb\qpb_message.h" />
+    <ClInclude Include="qpb\qpb_ref.h" />
+  </ItemGroup>
+</Project>
