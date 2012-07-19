@@ -35,12 +35,15 @@ struct QpbArray
   
   static QpbArray* GetUserData( lua_State *, int idx= QPB_ARRAY_SELF );
   int collect(lua_State*);
-  
+
+  int size() const;
   int size( lua_State * ) const;
   int get( lua_State * ) const;
+  int get_raw( lua_State *, int idx ) const;
   int set( lua_State * );
-  int clear( lua_State * L );
-
+  int clear( lua_State * );
+  int to_string( lua_State*) const;
+  
   static int ArrayGet( lua_State *, const Message &, const FieldDescriptor*, int i );
   static void ArraySet( lua_State *, Message *, const FieldDescriptor*, int i );
 

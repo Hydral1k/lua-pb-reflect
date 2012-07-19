@@ -27,7 +27,7 @@ using namespace google::protobuf;
 //---------------------------------------------------------------------------
 // note we can't get a handle without a valid msg
 // and every msg is supposed to have a valid descriptor
-int QpbMessage::PushMsg( lua_State*L, const QpbRef& msg, bool owned ) 
+int QpbMessage::PushMsg( lua_State*L, const QpbRef& msg, int owner ) 
 {
   // lua 'throws' on failed allocation
   QpbMessage *handle= (QpbMessage *)lua_newuserdata( L, sizeof(QpbMessage) );
@@ -37,7 +37,7 @@ int QpbMessage::PushMsg( lua_State*L, const QpbRef& msg, bool owned )
   }
   lua_setmetatable( L, -2 ); // set the metatable of the user data
   handle->_msg= msg;
-  handle->_owned_by_lua= owned;
+  handle->_owner= owner;
   return 1;
 }
 
@@ -51,8 +51,7 @@ QpbMessage* QpbMessage::GetUserData( lua_State * L, int idx )
 //---------------------------------------------------------------------------
 int QpbMessage::collect(lua_State* state)
 {
-  if (_owned_by_lua) {
-    _owned_by_lua= false;
+  if (_owner==unowned) {
     delete _msg.demute(0);
   }    
   return 0;
@@ -80,8 +79,17 @@ int QpbMessage::to_string( lua_State * L ) const
       QPB_ERR_DESCRIPTOR( L );
   }
   else {
-    lua_pushfstring(L,"qpb:(%d)%s", this, (const char*) desc->full_name().c_str() );
+    lua_pushfstring(L,"qpb: %p - %s", this, (const char*) desc->full_name().c_str() );
   }  
+  return 1;
+}
+
+//---------------------------------------------------------------------------
+// frequently a message is embedded in an array or another message
+// this is a very simplistic way to find out
+int QpbMessage::owner(lua_State*L)
+{
+  lua_pushinteger( L, this->_owner+1 );
   return 1;
 }
 
@@ -116,8 +124,8 @@ int QpbMessage::get(lua_State*L, const FieldDescriptor* field) const
     
   if (field->is_repeated()) {
     // repeated_fields can be accessed two ways through their bare name:
-    // pb.repeated_field( index ); and, pb.repeated_field()
-    // the second returns an immutable array
+    // pb.repeated_field(), and pb.repeated_field( index ); 
+    // the first returns an immutable array, the second an element of the array
     // 
     if (lua_type(L, QPB_GET_REPEATED_INDEX) == LUA_TNONE) {
       ret= QpbArray::PushProxy( L, (const Message&) _msg, field );
@@ -177,7 +185,7 @@ int QpbMessage::get(lua_State*L, const FieldDescriptor* field) const
       break;
       case FieldDescriptor::CPPTYPE_MESSAGE: {
         const Message& val= reflect->GetMessage( _msg, field );
-        ret= LUA_PUSH_MESSAGE( L, val );
+        ret= LUA_PUSH_MESSAGE( L, val, QpbMessage::message_owner );
       }
       break;
       default:
@@ -201,7 +209,7 @@ int QpbMessage::get_mutable(lua_State*L, const FieldDescriptor* field)
     if (msg) {
       const Reflection * reflect= msg->GetReflection();
       Message * src= reflect->MutableMessage( msg, field );
-      ret= LUA_PUSH_MESSAGE( L, src );
+      ret= LUA_PUSH_MESSAGE( L, src, QpbMessage::message_owner );
     }      
   }
   else 
@@ -364,8 +372,9 @@ int QpbMessage::add(lua_State*L, const FieldDescriptor* field)
             QPB_ERR_ADD_MESSAGE( L, field->name().c_str() );  
           }
           else {
+            int size= reflect->FieldSize( *msg, field );
             Message * newmsg= reflect->AddMessage( msg, field );
-            LUA_PUSH_MESSAGE( L, newmsg );
+            LUA_PUSH_MESSAGE( L, newmsg, size );
             ret= 1;
           }
         }
@@ -416,7 +425,7 @@ int QpbMessage::release(lua_State*L, const FieldDescriptor* field)
       else {
         dst->CopyFrom(val);
         reflect->ClearField( msg, field );
-        ret= LUA_PUSH_MESSAGE( L, dst );
+        ret= LUA_PUSH_MESSAGE( L, dst, QpbMessage::unowned );
       }        
     }      
   }          

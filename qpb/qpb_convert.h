@@ -113,13 +113,13 @@ inline int LUA_PUSH_STRING( lua_State* L, const std::string & str ) {
   return 1;
 }  
 
-inline int LUA_PUSH_MESSAGE( lua_State * L, const Message & msg ) {
-  return QpbMessage::PushMsg( L, QpbRef(msg) );
+inline int LUA_PUSH_MESSAGE( lua_State * L, const Message & msg, int owner ) {
+  return QpbMessage::PushMsg( L, QpbRef(msg), owner );
 }
 
-inline int LUA_PUSH_MESSAGE( lua_State * L, Message * msg ) {
+inline int LUA_PUSH_MESSAGE( lua_State * L, Message * msg, int owner ) {
   // passes false b/c the message is assumed owned by some other pb.
-  return QpbMessage::PushMsg( L, QpbRef(msg) );
+  return QpbMessage::PushMsg( L, QpbRef(msg), owner  );
 }
 
 #endif // #ifndef __QPB_CONVERT_H__

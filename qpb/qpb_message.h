@@ -17,15 +17,20 @@
 
 //---------------------------------------------------------------------------
 /**
- * POS-like type managed by lua, we are a proxy to control how garbage colleciton works
+ * POD-like type managed by lua, we are a proxy to control how garbage colleciton works
  */
 struct QpbMessage
 {
+  enum owned {
+    unowned=-2,         // a "top level" message, created by 'new, gc/garbage collect will delete
+    message_owner=-1,   // this message is owned by another message
+                        // else: the index of the message in its parent's array
+  };
   typedef google::protobuf::Message Message;
   typedef google::protobuf::Descriptor Descriptor;
   typedef google::protobuf::FieldDescriptor FieldDescriptor;
 
-  static int PushMsg(lua_State*, const QpbRef& msg, bool owned=false);
+  static int PushMsg(lua_State*, const QpbRef& msg, int owner );
   static QpbMessage* GetUserData( lua_State *, int idx= QPB_MESSAGE_SELF );
 
   int collect(lua_State* L);
@@ -40,6 +45,7 @@ struct QpbMessage
   int add(lua_State*L, const FieldDescriptor* field);
   int clear( lua_State * L, const FieldDescriptor* field );
   int release(lua_State*L, const FieldDescriptor* field );
+  int owner(lua_State*L);
 
   const Message& GetMessage() const {
     return _msg;
@@ -47,7 +53,7 @@ struct QpbMessage
 
 private:  
   QpbRef _msg;
-  bool _owned_by_lua;
+  int _owner; // unowned if there is no owner ( ie. it's a message allocated with 'new' )
   QpbMessage(); // unimplemented
 };
 

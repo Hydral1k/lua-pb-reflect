@@ -42,6 +42,14 @@ QpbArray* QpbArray::GetUserData( lua_State * L, int idx )
 }
 
 //---------------------------------------------------------------------------
+int QpbArray::to_string( lua_State * L ) const
+{
+  const int size= this->size();
+  lua_pushfstring(L,"qpb: %p - %s[%d]", this, (const char *) _field->full_name().c_str(), size );
+  return 1;
+}
+
+//---------------------------------------------------------------------------
 int QpbArray::collect( lua_State * L ) 
 {
   return 0;
@@ -51,6 +59,12 @@ int QpbArray::collect( lua_State * L )
 int QpbArray::get( lua_State * L ) const
 {
   int index = luaL_checkint(L, QPB_ARRAY_INDEX);
+  return ArrayGet( L, _msg, _field, index );
+}
+
+//---------------------------------------------------------------------------
+int QpbArray::get_raw( lua_State * L, int index ) const
+{
   return ArrayGet( L, _msg, _field, index );
 }
 
@@ -67,10 +81,17 @@ int QpbArray::set( lua_State * L )
 }
 
 //---------------------------------------------------------------------------
-int QpbArray::size( lua_State * L ) const
+int QpbArray::size() const
 {
   const Reflection * reflect= _msg->GetReflection();
   int size= reflect->FieldSize( _msg, _field );
+  return size;
+}
+
+//---------------------------------------------------------------------------
+int QpbArray::size( lua_State * L ) const
+{
+  int size= this->size();
   lua_pushinteger( L, size );
   return 1;
 }
@@ -146,7 +167,7 @@ int QpbArray::ArrayGet( lua_State *L, const Message & msg, const FieldDescriptor
       break;
       case FieldDescriptor::CPPTYPE_MESSAGE: {
         const Message& val= reflect->GetRepeatedMessage( msg, field, index );
-        ret= LUA_PUSH_MESSAGE( L, val );
+        ret= LUA_PUSH_MESSAGE( L, val, index );
       }
       break;
       default:

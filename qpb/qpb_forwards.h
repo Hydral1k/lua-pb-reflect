@@ -62,6 +62,16 @@ enum QpbParameters
   QPB_ARRAY_SELF =1,         // array:
   QPB_ARRAY_INDEX=2,         // array[index], array:get(index)
   QPB_ARRAY_VALUE=3,         // array[index]= value, array:set(index, value)
+
+  // qpb array iteration
+  QPB_NEXT_INVARIENT=1,
+  QPB_NEXT_CONTROL  =2,
+
+  // qpb array ipairs
+  QPB_ARRAY_IPAIRS=1,
+
+  // qpb message index lookup
+  QPB_MESSAGE_INDEX=1,
 };
 
 #define QPB_ERR_ALLOC(L)    luaL_error( L, "QPB: couldn't allocate memory.")

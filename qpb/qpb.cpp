@@ -29,8 +29,9 @@ using namespace google::protobuf;
 #define MATCH(key, a,b,c) (key[0] ==a && key[1] ==b && key[2] ==c && key[3] =='_')
 
 //---------------------------------------------------------------------------
-static int qpb_array_collect( lua_State * L ) 
-{
+// pb arrays from lua to c++ 
+//---------------------------------------------------------------------------
+static int qpb_array_collect( lua_State * L ) {
   QpbArray * array= QpbArray::GetUserData(L);
   return array->collect(L);
 }
@@ -51,6 +52,13 @@ static int qpb_array_get( lua_State * L ){
 static int qpb_array_size( lua_State * L ) { 
   QpbArray * array= QpbArray::GetUserData(L);
   return array->size( L );
+}
+
+//---------------------------------------------------------------------------
+// print( pb )
+static int qpb_array_to_string( lua_State * L ) {
+  QpbArray* array= QpbArray::GetUserData(L);
+  return array->to_string(L);
 }
 
 //---------------------------------------------------------------------------
@@ -77,19 +85,51 @@ static int qpb_array_index( lua_State * L )
   return 1;
 }
 
-
 //---------------------------------------------------------------------------
 // qpb global type
 //---------------------------------------------------------------------------
 
+// for _i,<val> in qpb.next, msg:array 
+//
+// the simpler call structure: for <val> in msg:array() do
+// would require the creation of a closure to remember the array invarient 'self'
+static int qpb_next( lua_State * L ) {
+  int ret=0;
+  const QpbArray * array= QpbArray::GetUserData(L, QPB_NEXT_INVARIENT);
+  const int next= 1 + lua_tointeger(L, QPB_NEXT_CONTROL); // a nil becomes 0, exactly what we want for loop start
+  if (next<=array->size()) {
+    lua_pushinteger( L, next );
+    ret= 1 + array->get_raw( L, next );
+  }    
+  return ret;
+}
+
+// for _i,<val> in qpb.ipairs( msg:array )
+static int qpb_ipairs( lua_State * L )  {
+  QpbArray * array= QpbArray::GetUserData(L, QPB_ARRAY_IPAIRS);
+  lua_pushcfunction( L, qpb_next ); // iterator function
+  lua_pushvalue(L,  QPB_ARRAY_IPAIRS ); // invarient
+  lua_pushinteger(L, 0 ); // initial value
+  return 3;
+}
+
+// return the owner index of the passed message
+// ( see QpbMessage.owner for more info )
+// part of qpb instead of the message to avoid conflicts between a user field name and this function
+// ( ie. msg.index() could be a field defined in the user's .proto )
+static int qpb_index( lua_State * L )  {
+  QpbMessage* msg= QpbMessage::GetUserData(L, QPB_MESSAGE_INDEX);
+  return msg->owner(L);
+}
+
 // pb= qpb.new( name );
 static int qpb_alloc( lua_State * L ) {
   Qpb*qpb= Qpb::GetUpValue(L);
-  return qpb->alloc(L);
+  return qpb->alloc();
 }
 
 //---------------------------------------------------------------------------
-// qpb message user data
+// pb messages from lua to c++ 
 //---------------------------------------------------------------------------
 
 // delete pb
@@ -97,16 +137,17 @@ static int qpb_msg_collect( lua_State * L ){
   QpbMessage* msg= QpbMessage::GetUserData(L);
   return msg->collect(L);
 }
+
 // print( pb )
 static int qpb_msg_to_string( lua_State * L ) {
   QpbMessage* msg= QpbMessage::GetUserData(L);
   return msg->to_string(L);
 }
 
-// pb:index
+// pb:unknown_field()
 static int qpb_parse_closure( lua_State * L ) {
   Qpb*qpb= Qpb::GetUpValue(L);
-  return qpb->parse_closure(L);
+  return qpb->parse_closure();
 }
 
 // pb.unknown_field
@@ -128,12 +169,14 @@ Qpb::~Qpb()
     delete _factory;
   }
 }
+
 //---------------------------------------------------------------------------
-Qpb::Qpb() 
+Qpb::Qpb( lua_State * L ) 
   : _factory(0)
+  , L(L)
 {
-  
 }
+
 //---------------------------------------------------------------------------
 Qpb * Qpb::GetUpValue( lua_State * L ) 
 {
@@ -145,7 +188,7 @@ Qpb * Qpb::GetUpValue( lua_State * L )
 /**
  * allocate a new QpbMessage as userdata, return it to the user
  */
-int Qpb::alloc( lua_State * L ) const
+int Qpb::alloc() const
 {
   int ret=0;
   
@@ -179,7 +222,7 @@ int Qpb::alloc( lua_State * L ) const
     }
     else {
       // return it.
-      ret= QpbMessage::PushMsg( L, msg, true );
+      ret= QpbMessage::PushMsg( L, msg, QpbMessage::unowned );
     }      
   }      
 
@@ -200,7 +243,7 @@ static const char parse_release[]="release_";
 
 
 // https://developers.google.com/protocol-buffers/docs/reference/cpp-generated#message
-int Qpb::parse_closure( lua_State * L ) const
+int Qpb::parse_closure() const
 {
   int ret=0;
   QpbMessage* handle= QpbMessage::GetUserData(L);
@@ -313,7 +356,7 @@ static void qpb_register( lua_State* L, const char * table, luaL_Reg*reglist, vo
 //---------------------------------------------------------------------------
 // c++ public main method
 //---------------------------------------------------------------------------
-int Qpb::register_descriptors( const char * name, lua_State* L , const Descriptor **descs,int count )
+int Qpb::register_descriptors( const char * name, const Descriptor **descs, int count )
 {
   int ambiguous_names=0;
 
@@ -332,6 +375,9 @@ int Qpb::register_descriptors( const char * name, lua_State* L , const Descripto
       // create the library type
       static luaL_Reg qpb_class_fun[] = {
         { "new", qpb_alloc },
+        { "next", qpb_next },
+        { "ipairs", qpb_ipairs },
+        { "index", qpb_index },
         { 0 }
       };
       lua_pushlightuserdata( L, this );  // prepare QPB_CLASS_UPVALUE
@@ -352,14 +398,14 @@ int Qpb::register_descriptors( const char * name, lua_State* L , const Descripto
         { "__gc", qpb_array_collect },
         { "__index", qpb_array_index }, // a[i]= 5, a:set(i,5)
         { "__newindex", qpb_array_set  },
-        { "__len", qpb_array_size   },
-        // TODO: { "__tostring", qpb_array_to_string }, 
+        { "__len", qpb_array_size },
+        { "__tostring", qpb_array_to_string }, 
         { "set", qpb_array_set }, // a:set -> no. b/c these dont exist on a,
         { "get", qpb_array_get }, // they exist on 
         { "size", qpb_array_size },
         { 0 }
       };
-      qpb_register( L, QPB_ARRAY_METATABLE, qpb_member_fun, 0);
+      qpb_register( L, QPB_ARRAY_METATABLE, qpb_array_fun, 0);
     }      
   }
 
