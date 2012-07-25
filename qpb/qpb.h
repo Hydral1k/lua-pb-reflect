@@ -24,32 +24,28 @@ public:
   typedef google::protobuf::Descriptor Descriptor;
   
   ~Qpb();
-  /**
-   * @param L lua state to register with.
-   */
-  Qpb(lua_State*L);
+  Qpb();
 
   /**
    * Register a series of the protobuf types with lua.
    *
+   * @param L lua state to register with
    * @param descs array of descriptors ( via userMessageType.descriptor() )
    * @param count number of descriptors in array
    *
    * @return count of ambiguous shortnames; the last shortname registered wins 
    */
-  int register_descriptors( const Descriptor **descs, int count ) {
-    return register_descriptors( QPB_GLOBAL_LIBARAY, descs, count );
+  int register_descriptors( lua_State*L, const Descriptor **descs, int count ) {
+    return register_descriptors( L, QPB_GLOBAL_LIBARAY, descs, count );
   }
 
-  int register_descriptors( const char * name, const Descriptor **descs, int count );
+  int register_descriptors( lua_State*, const char * name, const Descriptor **descs, int count );
 
-  int alloc() const;
-  int parse_closure() const;
-  static Qpb* GetUpValue( lua_State * L );
+  int alloc(lua_State*) const;
+  int parse_closure(lua_State*) const;
+  static Qpb* GetUpValue(lua_State *);
 
 protected:
-  lua_State*L;
-  
   int register_recurse( const Descriptor *desc );
   typedef google::protobuf::Message Message;
   typedef google::protobuf::MessageFactory MessageFactory;

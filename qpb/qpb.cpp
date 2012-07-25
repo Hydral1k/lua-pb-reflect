@@ -125,7 +125,7 @@ static int qpb_index( lua_State * L )  {
 // pb= qpb.new( name );
 static int qpb_alloc( lua_State * L ) {
   Qpb*qpb= Qpb::GetUpValue(L);
-  return qpb->alloc();
+  return qpb->alloc(L);
 }
 
 //---------------------------------------------------------------------------
@@ -147,7 +147,7 @@ static int qpb_msg_to_string( lua_State * L ) {
 // pb:unknown_field()
 static int qpb_parse_closure( lua_State * L ) {
   Qpb*qpb= Qpb::GetUpValue(L);
-  return qpb->parse_closure();
+  return qpb->parse_closure(L);
 }
 
 // pb.unknown_field
@@ -171,9 +171,8 @@ Qpb::~Qpb()
 }
 
 //---------------------------------------------------------------------------
-Qpb::Qpb( lua_State * L ) 
+Qpb::Qpb() 
   : _factory(0)
-  , L(L)
 {
 }
 
@@ -188,7 +187,7 @@ Qpb * Qpb::GetUpValue( lua_State * L )
 /**
  * allocate a new QpbMessage as userdata, return it to the user
  */
-int Qpb::alloc() const
+int Qpb::alloc(lua_State*L) const
 {
   int ret=0;
   
@@ -243,7 +242,7 @@ static const char parse_release[]="release_";
 
 
 // https://developers.google.com/protocol-buffers/docs/reference/cpp-generated#message
-int Qpb::parse_closure() const
+int Qpb::parse_closure(lua_State*L) const
 {
   int ret=0;
   QpbMessage* handle= QpbMessage::GetUserData(L);
@@ -356,7 +355,7 @@ static void qpb_register( lua_State* L, const char * table, luaL_Reg*reglist, vo
 //---------------------------------------------------------------------------
 // c++ public main method
 //---------------------------------------------------------------------------
-int Qpb::register_descriptors( const char * name, const Descriptor **descs, int count )
+int Qpb::register_descriptors( lua_State*L, const char * name, const Descriptor **descs, int count )
 {
   int ambiguous_names=0;
 

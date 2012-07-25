@@ -30,6 +30,10 @@ struct QpbMessage
   typedef google::protobuf::Descriptor Descriptor;
   typedef google::protobuf::FieldDescriptor FieldDescriptor;
 
+  /**
+   * @param owner enum owned, or an index
+   * @return 1 on success
+   */
   static int PushMsg(lua_State*, const QpbRef& msg, int owner );
   static QpbMessage* GetUserData( lua_State *, int idx= QPB_MESSAGE_SELF );
 
