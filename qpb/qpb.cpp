@@ -380,7 +380,10 @@ int Qpb::register_descriptors( lua_State*L, const char * name, const Descriptor 
         { 0 }
       };
       lua_pushlightuserdata( L, this );  // prepare QPB_CLASS_UPVALUE
-      luaI_openlib( L, name, qpb_class_fun, 1 );   // create a table in the registry @ 'type' with the passed named c-functions
+      //luaL_openlib( L, name, qpb_class_fun, 1 );   // create a table in the registry @ 'type' with the passed named c-functions
+      lua_newtable( L );
+      luaL_setfuncs( L, qpb_class_fun, 0);
+      lua_setglobal( L, name );
       lua_pop( L, 1 ); // openlib removes upvalues, but returns result
       
       // create the qpb message type

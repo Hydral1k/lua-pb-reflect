@@ -102,9 +102,11 @@ inline int LUA_PUSH_BOOL( lua_State* L, bool val ) {
 }  
 
 inline int LUA_PUSH_ENUM( lua_State* L, const EnumValueDescriptor* eval ) {
-  eval ? 
-    lua_pushstring( L, eval->name().c_str() ) : 
+  if (eval) {
+    lua_pushstring( L, eval->name().c_str() );
+  } else {
     lua_pushnil(L);
+  }
   return 1;    
 }  
 
