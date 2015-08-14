@@ -43,8 +43,8 @@ Now, in lua:
 ```
 local person= QPB.new('Person')
 person:set_id(123)
-person:set_name("Bob");
-person:set_email("bob@example.com");
+person:set_name("Bob")
+person:set_email("bob@example.com")
 ```
 All field accessors, array lookups etc, automagically work. Access exactly follows the patterns setup on https://developers.google.com/protocol-buffers/docs/reference/cpp-generated#message, with one exception.
 
