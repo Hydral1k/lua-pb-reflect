@@ -202,21 +202,33 @@ int QpbMessage::get_mutable(lua_State*L, const FieldDescriptor* field)
   int ret=0;
   if (field->type()==FieldDescriptor::TYPE_STRING) {
     QPB_ERR_MUTE_STRING( L, field->name().c_str() );
-  }
-  else
-  if (field->type()==FieldDescriptor::TYPE_MESSAGE) {
+  }else if (field->is_repeated()) {
+    if (lua_type(L, QPB_GET_REPEATED_INDEX) == LUA_TNONE) {
+        Message* msg= _msg.demute(L);
+      if (msg) {
+	      ret= QpbArray::PushProxy(L, msg, field );
+      }      
+    }
+    else {
+      Message * msg= _msg.demute(L);
+      if (msg) {
+	     const Reflection * reflect= msg->GetReflection();
+	     const int size= reflect->FieldSize( _msg, field );
+	    int index= lua_tointeger(L, QPB_GET_REPEATED_INDEX );
+	    index-=1; // lua-to-c
+	if (index <0 || index>=size) {
+	  QPB_ERR_RANGE( L, field->name().c_str(), index, size );
+	}
+	Message * src= reflect->MutableRepeatedMessage( msg, field, index );
+	ret= LUA_PUSH_MESSAGE( L, src, QpbMessage::message_owner );
+      }      
+    }      
+  }else if (field->type()==FieldDescriptor::TYPE_MESSAGE) {
     Message * msg= _msg.demute(L);
     if (msg) {
       const Reflection * reflect= msg->GetReflection();
       Message * src= reflect->MutableMessage( msg, field );
       ret= LUA_PUSH_MESSAGE( L, src, QpbMessage::message_owner );
-    }      
-  }
-  else 
-  if (field->is_repeated()) {
-    Message* msg= _msg.demute(L);
-    if (msg) {
-      ret= QpbArray::PushProxy(L, msg, field );
     }      
   }
   else {
